@@ -2,6 +2,7 @@ const express = require("express");
 const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
+const quizData = require("./data/quizData");
 
 const app = express();
 const server = http.createServer(app);
@@ -26,12 +27,12 @@ io.on("connection", (socket) => {
     if (waitingRooms[topic]) {
       const roomId = waitingRooms[topic];
       socket.join(roomId);
+  
       const quiz = activeGames[roomId]?.quiz;
       if (quiz) {
-        socket.emit("start-quiz", quiz);
-        socket.to(roomId).emit("start-quiz", quiz);
+        io.to(roomId).emit("start-quiz", quiz);
       }
-  
+
       io.to(roomId).emit("message", `User ${socket.id} joined room ${roomId}`);
       io.to(roomId).emit("opponent-joined"); // ✅ notify both users now
       socket.emit("joined-room", roomId);
@@ -41,12 +42,12 @@ io.on("connection", (socket) => {
       const newRoomId = `${topic}-${socket.id}`;
       waitingRooms[topic] = newRoomId;
       socket.join(newRoomId);
-      const quiz = [
-        { question: "What is 2 + 2?", options: ["3", "4", "5"], answer: "4" },
-        { question: "What color is the sky?", options: ["Blue", "Red", "Green"], answer: "Blue" }
-      ];
+      
+      const selectedQuiz = quizData.find((q) => q.topic === topic);
+      const questions = selectedQuiz ? selectedQuiz.questions : [];
+
       activeGames[newRoomId] = {
-        quiz,
+        quiz: questions,
         players: [socket.id],
       };
       socket.emit("joined-room", newRoomId);
